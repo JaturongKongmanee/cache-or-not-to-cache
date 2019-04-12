@@ -26,12 +26,10 @@ struct msg {
 msg_t msg_queue;
 
 struct nde {
-    FACILITY cpu;
     MBOX mbox;
 };
 
-struct nde node[NUM_NODES];
-FACILITY network[NUM_NODES][NUM_NODES];
+struct nde node[NUM_CLIENTS];
 
 
 void init();
@@ -43,7 +41,7 @@ void receive_message();
 
 /* client side and its function*/
 void client();
-void query();
+void generate_query();
 void receive_ir();
 
 
@@ -62,24 +60,12 @@ void init() {
     long i, j;
     char str[24];
 
-    max_facilities(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
-    max_servers(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
     max_mailboxes(NUM_CLIENTS + NUM_SERVER);
-    max_events(2 * NUM_CLIENTS * NUM_CLIENTS);
 
     long all_node = NUM_CLIENTS + NUM_CLIENTS;
     for(i = 0; i < all_node; i++){
-        sprintf(str, "cpu.%d", i);
-        node[i].cpu = facility(str);
         sprintf(str, "input.%d", i);
         node[i].mbox = mailbox(str);
-    }
-
-    for(i = 0; i < NUM_SERVER; i++){
-        for(j = 0; j < NUM_CLIENTS; j++){
-            sprintf(str, "nt%d.%d", i, j);
-            network[i][j] = facility(str);
-        }
     }
 
     for(i = 0; i < NUM_CLIENTS; i++){
@@ -94,18 +80,24 @@ void server(long n) {
     while(clock < SIM_TIME){
         invalidation_report();
         update_data_items();
+        receive_message();
     }   
 }
 
 void invalidation_report() {
     create("ir");
     while(clock < SIM_TIME){
-        /* code */
+        hold(20);
+        /* Broadcast: put the message into all clients' mailboxes */
+        long i;
+        for(i = 0; i < NUM_CLIENTS; i++) {
+            send(node[i].mbox, (long)m);
+        }
     }
     
 }
 
-void invalidation_report() {
+void update_data_items() {
     create("update");
     while(clock < SIM_TIME){
         /* code */
@@ -121,6 +113,11 @@ void receive_message() {
 }
 
 
+
+
+
+
+
 void client(long n) {
     create("client");
     while(clock < SIM_TIME){
@@ -130,7 +127,7 @@ void client(long n) {
     
 }
 
-void query() {
+void generate_query() {
     create("query");
     while(clock < SIM_TIME){
         /* code */
