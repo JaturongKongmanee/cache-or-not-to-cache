@@ -33,11 +33,13 @@ struct nde node[NUM_CLIENTS + NUM_SERVER];
 struct message {
     long id;
     /* represented by the number of update */
-    /*int last_updated_time;*/
+    long last_updated_time;
 
 };
 
-/* struct message data_list[100];*/
+struct message data_list[100];
+
+
 struct message *msg;
 struct message *m;
 
@@ -72,13 +74,13 @@ void init() {
     long i;
     char str[24];
     
-    /*for (i = 0; i < 100; i++) {
+    for (i = 0; i < 100; i++) {
          data_list[i].id = i;
          data_list[i].last_updated_time = 0;
-    }*/
+    }
 
     long all_node = NUM_CLIENTS + NUM_CLIENTS;
-    max_mailboxes(all_node);
+    /*max_mailboxes(all_node);*/
     /*max_servers(all_node);
     max_events(all_node);*/
 
@@ -121,6 +123,11 @@ void invalidation_report() {
         /* Broadcast: put the message into all clients' mailboxes */
         /*struct message *msg;*/
         msg = (struct message*)malloc(sizeof(*msg));
+
+        long j;
+        for (j = 0; j < 100; j++) {
+            data_list[j].last_updated_time = 1;
+        }
             
         /*send(node[0].mbox, (long)msg);
         printf("sent message to node %ld\n", 0);
@@ -133,12 +140,12 @@ void invalidation_report() {
         receive(node[1].mbox, (long*)&m);
         printf("message received %ld \n", node[1].mbox);*/
         long i;
-        for(i = 0; i < NUM_CLIENTS; i++) {
+        for (i = 0; i < NUM_CLIENTS; i++) {
             /* Transmission delay */
             /* hold(2); */
-            msg->id = i+1000;
-            send(node[i].mbox, (long)msg);
-            printf("sent message to node %ld with %ld\n", i, msg->id);
+            /*msg->id = i+1000;*/
+            send(node[i].mbox, (long)data_list);
+            printf("sent message to node %ld with %ld\n", i, data_list);
             /*receive(node[i].mbox, (long*)&m);
             printf("message received %ld \n", m->id);*/
         }
