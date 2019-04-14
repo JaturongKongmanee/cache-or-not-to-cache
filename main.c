@@ -9,27 +9,42 @@
 */
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 1000.0
+#define SIM_TIME 5.0
 #define NUM_CLIENTS 2l
 #define NUM_SERVER 1l
+#define NUM_BOXES 3
 
 /* typedef is used to give a name to a type (it can be user-defined type)*/
-typedef struct msg *msg_t;
+/*typedef struct msg *msg_t;
 struct msg {
     long type;
     long from;
     long to;
     TIME start_time;
     msg_t link;
-};
-
-msg_t msg_queue;
+};*/
 
 struct nde {
     MBOX mbox;
 };
+struct nde node[NUM_CLIENTS + NUM_SERVER];
 
-struct nde node[NUM_CLIENTS];
+
+struct message {
+    int id;
+    /* represented by the number of update */
+    int last_updated_time;
+
+};
+
+/* struct message data_list[100];*/
+
+long msg;
+
+MBOX mbox_arr[NUM_BOXES];
+
+
+TABLE resp_tm;
 
 
 void init();
@@ -48,6 +63,8 @@ void receive_ir();
 void sim() {
     create("sim");
     init();
+    /*server();
+    client();*/
     hold(SIM_TIME);
     /*while(clock < SIM_TIME){
         server();
@@ -57,41 +74,61 @@ void sim() {
 }
 
 void init() {
-    long i, j;
+    long i;
     char str[24];
-
-    max_mailboxes(NUM_CLIENTS + NUM_SERVER);
+    
+    /*for (i = 0; i < 100; i++) {
+         data_list[i].id = i;
+         data_list[i].last_updated_time = 0;
+    }*/
 
     long all_node = NUM_CLIENTS + NUM_CLIENTS;
-    for(i = 0; i < all_node; i++){
+    max_mailboxes(all_node);
+    max_servers(all_node);
+    max_events(all_node);
+
+    for (i = 0; i < all_node; i++) {
         sprintf(str, "input.%d", i);
         node[i].mbox = mailbox(str);
     }
 
-    for(i = 0; i < NUM_CLIENTS; i++){
-        client(i);
-    }
+    /*create_mailbox_set("mbox set", mbox_arr, NUM_BOXES);*/
+
+    resp_tm = table("msg rsp tm");
 
     server(0);
+    for (i = 0; i < NUM_CLIENTS; i++) {
+        client(i);
+        printf("test %ld\n", i);
+    }
+
+    
 }
 
 void server(long n) {
     create("server");
+    printf("Server is generated");
     while(clock < SIM_TIME){
         invalidation_report();
-        update_data_items();
-        receive_message();
+        /*update_data_items();
+        receive_message();*/
     }   
 }
 
 void invalidation_report() {
     create("ir");
+    printf("IR is generated");
     while(clock < SIM_TIME){
-        hold(20);
+        hold(5);
         /* Broadcast: put the message into all clients' mailboxes */
         long i;
         for(i = 0; i < NUM_CLIENTS; i++) {
-            send(node[i].mbox, (long)m);
+            /* Transmission delay */
+            /* hold(2); */
+            long msg1;
+            msg1 = 5;
+            send(node[i].mbox, msg1);
+            printf("sent message to node %ld\n", i);
         }
     }
     
@@ -118,10 +155,12 @@ void receive_message() {
 
 
 
+
 void client(long n) {
     create("client");
+    printf("Client %ld is generatedddd", n);
     while(clock < SIM_TIME){
-        query();
+        /*generate_query();*/
         receive_ir();
     }
     
@@ -137,8 +176,10 @@ void generate_query() {
 
 void receive_ir() {
     create("receive_ir");
+    long i;
     while(clock < SIM_TIME){
-        /* code */
+        /*receive(node, &msg);*/
+        /*printf("message received %ld", node[0].mbox);*/
     }
     
 }
