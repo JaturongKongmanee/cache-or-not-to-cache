@@ -72,7 +72,7 @@ void init() {
         data_list[i].id = i;
         data_list[i].last_updated_time = 0;
         ptr[i] = &data_list[i];
-        printf("Test pointer %ld\n", ptr[i]->id);
+        /*printf("Test pointer %ld\n", ptr[i]->id);*/
     }
 
     long all_node = NUM_CLIENTS + NUM_CLIENTS;
@@ -82,8 +82,8 @@ void init() {
         node[i].mbox = mailbox(str);
     }
 
+    printf("modify array\n");
     data_list[0].id = 555;
-    /*printf("Test pointer %ld\n", ptr[0]->id);*/
 
     server(0);
     printf("Calling server\n");
@@ -99,7 +99,7 @@ void server(long n) {
     printf("Server is generated\n");
     printf("Calling IR\n");
     invalidation_report();
-    /*update_data_items();*/
+    update_data_items();
     /*receive_message();*/
     while(clock < SIM_TIME){
         hold(1);
@@ -153,7 +153,7 @@ void update_data_items() {
         hold(10);
         long i;
         for (i = 0; i < 100; i++) {
-            ptr[i]->last_updated_time = 88888;
+            data_list[i].last_updated_time = 88888;
         }
     }
     
@@ -195,7 +195,13 @@ void receive_ir(long n) {
     while(clock < SIM_TIME){
         hold(5);
         receive(node[n].mbox, ptr);
-        printf("Node %ld received message\n", n);
+        long i;
+        /*for(i = 0; i < 100; i++)
+        {
+            printf("Node %ld received message\n", ptr);
+        }*/
+        
+        
     }
     
 }
