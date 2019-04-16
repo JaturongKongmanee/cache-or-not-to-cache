@@ -4,13 +4,12 @@
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 100.0
-#define NUM_CLIENTS 2l
+#define SIM_TIME 1000.0
+#define NUM_CLIENTS 10l
 #define NUM_SERVER 1l
-#define NUM_BOXES 3
 
-#define DB_SIZE 3
-#define CACHE_SIZE 2
+#define DB_SIZE 10000
+#define CACHE_SIZE 100
 
 #define BROADCAST_INTERVAL 20
 #define MEAN_UPDATE 20
@@ -36,7 +35,7 @@ struct cache_items {
     TIME last_updated_time;
     TIME last_accessed_time;
 };
-struct cache_items cache_size[CACHE_SIZE];
+struct cache_items cache_size[NUM_CLIENTS][CACHE_SIZE];
 
 struct request {
     long item_id;
@@ -81,7 +80,15 @@ void init() {
     for (i = 1; i <= NUM_CLIENTS; i++) {
         client(i);
         printf("Calling client%ld\n", i);
-    }    
+    }
+
+    q = (struct request *)malloc(sizeof(struct request) * NUM_CLIENTS);
+    for (i = 1; i <= NUM_CLIENTS; i++) {
+        (q+i)->item_id = 2222;
+        printf("Allocating request for Node %ld at address %ld with value %ld\n", i, (q+i), *(q+i));
+    }
+    printf("Q address %ld", &q);
+    
 }
 
 void server(long n) {
@@ -127,7 +134,7 @@ void invalidation_report() {
             ir[i].last_updated_time = clock;
         }
 
-        for (i = 0; i < NUM_CLIENTS; i++) {   
+        for (i = 1; i <= NUM_CLIENTS; i++) {   
             send(node[i].mbox, (long)ir);
             printf("Broadcasting to node %ld \n", i);
         }
@@ -152,8 +159,15 @@ void receive_message() {
     create("receive_message");
     while(clock < SIM_TIME){
         hold(BROADCAST_INTERVAL);
-        receive(node[0].mbox, (long *)&q);
-        printf("Receiving request from %ld\n", &q);
+        long request_item_id[NUM_CLIENTS];
+        long i;
+        for (i = 1; i <= NUM_CLIENTS; i++){
+            receive(node[0].mbox, (q+i));
+            printf("Receiving request from %ld\n", (q+i));
+            request_item_id[i] = (q+i)->item_id;
+            printf("Adding %ld to item_is_list from node address %ld\n", request_item_id[i], (q+i));
+        }
+        
     }
 }
 
@@ -165,12 +179,12 @@ void client(long n) {
     /* Set up cache size */
     long i;
     for (i = 0; i < CACHE_SIZE; i++) {
-        cache_size[i].id = 0;
-        cache_size[i].last_updated_time = 0;
-        cache_size[i].last_accessed_time = 0;
+        cache_size[n][i].id = 0;
+        cache_size[n][i].last_updated_time = 0;
+        cache_size[n][i].last_accessed_time = 0;
     }
 
-    printf("Node %ld cache size address is %ld\n", n, &cache_size);
+    printf("Node %ld cache size address is %ld\n", n, &cache_size[n]);
 
     receive_ir(n);
     generate_query(n);
@@ -180,14 +194,13 @@ void client(long n) {
     
 }
 
-void generate_query(long n) {
+void generate_query(long i) {
     create("query");
     while(clock < SIM_TIME) {
         hold(MEAN_QUERY);       
-        q = (struct request *)malloc(sizeof(*q));
-        q->item_id = 777;
-        send(node[0].mbox, q);
-        printf("Requesting data_item ID from node %ld at address %ld...\n", n, &q);
+        (q+i)->item_id = 1000000000000+i;
+        send(node[0].mbox, (q+i)->item_id);
+        printf("Requesting data_item ID from node %ld at address %ld with value %ld\n", i, (q+i), (q+i)->item_id);
     }  
 }
 
@@ -198,21 +211,19 @@ void receive_ir(long n) {
     while(clock < SIM_TIME){
         hold(1);
         receive(node[n].mbox, (long *)&ir);
-        int n;
-        n = sizeof(ir);
-        long i, j;
+        int m;
+        /*m = sizeof(ir);*/
+        /*long i, j;
         for(i = 0; i < n; i++) {
             for (j = 0; j < CACHE_SIZE; j++) {
-                /* not cached */
                 if (ir[i].last_updated_time > cache_size[i].last_updated_time) {
                     cache_size[i].id = ir[i].id;
                     cache_size[i].last_updated_time = ir[i].last_updated_time;
                     cache_size[i].last_accessed_time = clock;
                 } else {
-                    /* cached */
                 }
             }
-        }
+        }*/
         printf("Node %ld receives IR %ld\n", n, &ir);
         
         /*for (i = 0; i < 5; i++) {
