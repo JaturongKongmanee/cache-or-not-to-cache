@@ -9,22 +9,13 @@
 #define NUM_SERVER 1l
 #define NUM_BOXES 3
 
-#define DB_SIZE 100
-#define CACHE_SIZE 10
+#define DB_SIZE 3
+#define CACHE_SIZE 2
 
-#define BROADCAST_INTERVAL 5
+#define BROADCAST_INTERVAL 20
 #define MEAN_UPDATE 20
-#define MEAN_QUERY 25
+#define MEAN_QUERY 10
 
-/* typedef is used to give a name to a type (it can be user-defined type)*/
-/*typedef struct msg *msg_t;
-struct msg {
-    long type;
-    long from;
-    long to;
-    TIME start_time;
-    msg_t link;
-};*/
 
 struct nde {
     MBOX mbox;
@@ -43,9 +34,14 @@ struct data_items *ir;
 struct cache_items {
     long id;
     TIME last_updated_time;
-    long accessed_number;
+    TIME last_accessed_time;
 };
 struct cache_items cache_size[CACHE_SIZE];
+
+struct request {
+    long item_id;
+};
+struct request *q;
 
 
 void init();
@@ -71,9 +67,10 @@ void init() {
     long i;
     char str[24];
     
-    long all_node = NUM_CLIENTS + NUM_CLIENTS;
+    sprintf(str, "input.%d", 0);
+    node[0].mbox = mailbox(str);
 
-    for (i = 0; i < all_node; i++) {
+    for (i = 1; i <= NUM_CLIENTS; i++) {
         sprintf(str, "input.%d", i);
         node[i].mbox = mailbox(str);
     }
@@ -81,7 +78,7 @@ void init() {
     server(0);
     printf("Calling server\n");
 
-    for (i = 0; i < NUM_CLIENTS; i++) {
+    for (i = 1; i <= NUM_CLIENTS; i++) {
         client(i);
         printf("Calling client%ld\n", i);
     }    
@@ -99,17 +96,15 @@ void server(long n) {
     }
     printf("Calling IR\n");
     invalidation_report();
-    update_data_items();
-    /*receive_message();*/
+    /*update_data_items();*/
+    receive_message();
     while(clock < SIM_TIME){
-        hold(1);
-        
+        hold(1);  
     }   
 }
 
 void invalidation_report() {
     create("ir"); 
-    printf("IR is generated\n");
     while(clock < SIM_TIME){
         hold(BROADCAST_INTERVAL);    
         /* Broadcast: put the message into all clients' mailboxes */
@@ -133,7 +128,7 @@ void invalidation_report() {
         }
 
         for (i = 0; i < NUM_CLIENTS; i++) {   
-            send(node[i].mbox, ir);
+            send(node[i].mbox, (long)ir);
             printf("Broadcasting to node %ld \n", i);
         }
     }
@@ -157,7 +152,8 @@ void receive_message() {
     create("receive_message");
     while(clock < SIM_TIME){
         hold(BROADCAST_INTERVAL);
-
+        receive(node[0].mbox, (long *)&q);
+        printf("Receiving request from %ld\n", &q);
     }
 }
 
@@ -169,41 +165,59 @@ void client(long n) {
     /* Set up cache size */
     long i;
     for (i = 0; i < CACHE_SIZE; i++) {
-        cache_size[i].id = i;
-        cache_size[i].last_updated_time = i;
-        cache_size[i].accessed_number = i;
+        cache_size[i].id = 0;
+        cache_size[i].last_updated_time = 0;
+        cache_size[i].last_accessed_time = 0;
     }
 
+    printf("Node %ld cache size address is %ld\n", n, &cache_size);
+
     receive_ir(n);
-    /*generate_query();*/
+    generate_query(n);
     while(clock < SIM_TIME){
         hold(1);  
     }
     
 }
 
-void generate_query() {
+void generate_query(long n) {
     create("query");
     while(clock < SIM_TIME) {
-        hold(MEAN_QUERY);
-
+        hold(MEAN_QUERY);       
+        q = (struct request *)malloc(sizeof(*q));
+        q->item_id = 777;
+        send(node[0].mbox, q);
+        printf("Requesting data_item ID from node %ld at address %ld...\n", n, &q);
     }  
 }
 
+
 void receive_ir(long n) {
     create("receive_ir");
-    printf("receiving messages\n");
+    printf("receiving IR...\n");
     while(clock < SIM_TIME){
-        hold(BROADCAST_INTERVAL);
-        receive(node[n].mbox, ir);
-        long i;
-        for(i = 0; i < 10; i++) {
-            printf("Node %ld received message %6.3f\n", n, ir[i].last_updated_time);
+        hold(1);
+        receive(node[n].mbox, (long *)&ir);
+        int n;
+        n = sizeof(ir);
+        long i, j;
+        for(i = 0; i < n; i++) {
+            for (j = 0; j < CACHE_SIZE; j++) {
+                /* not cached */
+                if (ir[i].last_updated_time > cache_size[i].last_updated_time) {
+                    cache_size[i].id = ir[i].id;
+                    cache_size[i].last_updated_time = ir[i].last_updated_time;
+                    cache_size[i].last_accessed_time = clock;
+                } else {
+                    /* cached */
+                }
+            }
         }
+        printf("Node %ld receives IR %ld\n", n, &ir);
         
-        for (i = 0; i < 5; i++) {
+        /*for (i = 0; i < 5; i++) {
             printf("cache of node %ld at index %ld\n", n, cache_size[i].id);
-        }   
+        }*/ 
     }
     
 }
