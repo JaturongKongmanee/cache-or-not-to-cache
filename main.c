@@ -92,6 +92,7 @@ void init() {
         printf("Calling client%ld\n", i);
     }
 
+    /* allocate memory for query request */
     q = (struct request *)malloc(sizeof(struct request) * 5);
 }
 
@@ -188,7 +189,6 @@ void receive_message() {
     }
 }
 
-
 void client(long n) {
     create("client");
     printf("Client %ld is generated\n", n);
@@ -204,7 +204,7 @@ void client(long n) {
     printf("Node %ld cache size address is %ld\n", n, &cache_size[n]);
 
     receive_ir(n);
-    /*generate_query(n);*/
+    generate_query(n);
     while(clock < SIM_TIME){
         hold(1);  
     }
@@ -216,18 +216,21 @@ void generate_query(long n) {
     while(clock < SIM_TIME) {
         hold(T_QUERY);
         if (uniform(0.0, 1.0) <= 0.8) {
-            long rand_access_hot_item = rand() % (49 + 1 - 0) + 0;
+            long rand_access_hot_item_id = rand() % (49 + 1 - 0) + 0;
             /* check cache */
-            if (is_cached(n, rand_access_hot_item) != 1) {
+            if (is_cached(n, rand_access_hot_item_id) != 1) {
                 /* generate query request */
-                printf("generating query request at hot data... at %ld index %ld\n", n, rand_access_hot_item);
+                q->item_id = rand_access_hot_item_id;
+                send(node[0].mbox, (long)q);
+                printf("generating query request at hot data... from node %ld with id %ld\n", n, rand_access_hot_item_id);
             }
         } else {
-            long rand_access_cold_item = rand() % ((DB_SIZE - 1) + 1 - 50) + 50;
+            long rand_access_cold_item_id = rand() % ((DB_SIZE - 1) + 1 - 50) + 50;
             /* check cache */
-            if (is_cached(n, rand_access_cold_item) != 1) {
-                /* generate query request */
-                printf("generating query request at cold data... at %ld index %ld\n", n, rand_access_cold_item);
+            if (is_cached(n, rand_access_cold_item_id) != 1) {
+                q->item_id = rand_access_cold_item_id;
+                send(node[0].mbox, (long)q);
+                printf("generating query request at cold data... from node %ld with id %ld\n", n, rand_access_cold_item_id);
             }
         }
     }  
@@ -265,10 +268,13 @@ void receive_ir(long n) {
     } 
 }
 
-int is_cached(long cache_num, long item) {
-    if (cache_size[cache_num][item].last_accessed_time != 0) {
-        return 1;
-    } else {
-        return 0;
+int is_cached(long n, long item_id) {
+    long i;
+    for (i = 0; i < CACHE_SIZE; i++) {
+        if (cache_size[n][i].id == item_id) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 }
