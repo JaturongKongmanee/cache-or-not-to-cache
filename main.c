@@ -5,7 +5,7 @@
 
 /* #define is used to define CONSTANT */
 #define SIM_TIME 1000.0
-#define NUM_CLIENTS 2l
+#define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
 #define DB_SIZE 100
