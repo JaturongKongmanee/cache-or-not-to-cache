@@ -24,6 +24,7 @@ struct nde {
 struct nde node[NUM_CLIENTS + NUM_SERVER];
 
 
+/* structure for server side */
 struct data_items {
     long id;
     TIME last_updated_time;
@@ -36,7 +37,10 @@ struct ir_msg {
     long ir_size;
 };
 struct ir_msg *ir;
+long l_bcast[100];
 
+
+/* structure for client side */
 struct cache_items {
     long id;
     TIME last_updated_time;
@@ -108,10 +112,10 @@ void server(long n) {
     }
     printf("Calling IR\n");
     invalidation_report();
-    /*receive_message();*/
+    receive_message();
     update_data_items();
     while(clock < SIM_TIME){
-        hold(1);  
+        hold(exponential(1));  
     }   
 }
 
@@ -120,7 +124,7 @@ void invalidation_report() {
     long ir_msg_size;
     ir = NULL;
     while(clock < SIM_TIME){
-        hold(BROADCAST_INTERVAL);    
+        hold(exponential(BROADCAST_INTERVAL));    
         /* Broadcast: put the message into all clients' mailboxes */
         /* Create a new IR */
         if (ir != NULL) {
@@ -148,7 +152,7 @@ void invalidation_report() {
         }
 
         for (i = 0; i < ir_msg_size; ++i) {
-            printf("Test ir id %ld and time %6.3f with size %ld\n", ir[i].id, ir[i].last_updated_time, ir[i].ir_size);
+            printf("Test IR id %ld and time %6.3f with size %ld\n", ir[i].id, ir[i].last_updated_time, ir[i].ir_size);
         }
     }
     
@@ -176,11 +180,11 @@ void update_data_items() {
 void receive_message() {
     create("receive_message");
     while(clock < SIM_TIME){
-        hold(BROADCAST_INTERVAL);
+        hold(exponential(1));
         long request_item_id[NUM_CLIENTS];
         long i;
         for (i = 1; i <= NUM_CLIENTS; i++){
-            receive(node[0].mbox, (q+i));
+            receive(node[0].mbox, (long*)&q);
             printf("Receiving request from %ld\n", (q+i));
             request_item_id[i] = (q+i)->item_id;
             printf("Adding %ld to item_is_list from node address %ld\n", request_item_id[i], (q+i));
@@ -206,7 +210,7 @@ void client(long n) {
     receive_ir(n);
     generate_query(n);
     while(clock < SIM_TIME){
-        hold(1);  
+        hold(exponential(1));  
     }
     
 }
@@ -214,7 +218,7 @@ void client(long n) {
 void generate_query(long n) {
     create("query");
     while(clock < SIM_TIME) {
-        hold(T_QUERY);
+        hold(exponential(T_QUERY));
         if (uniform(0.0, 1.0) <= 0.8) {
             long rand_access_hot_item_id = rand() % (49 + 1 - 0) + 0;
             /* check cache */
@@ -240,7 +244,7 @@ void receive_ir(long n) {
     create("receive_ir");
     printf("receiving IR...\n");
     while(clock < SIM_TIME){
-        hold(1);
+        hold(exponential(1));
         receive(node[n].mbox, (long*)&ir);
         printf("Test ..................... receive function %ld\n", (long*)&ir);
         printf("Node %ld address %ld, receives IR size %ld\n", n, &cache_size[n], ir[0].ir_size);
