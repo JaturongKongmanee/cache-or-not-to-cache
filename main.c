@@ -4,19 +4,19 @@
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 500.0
-#define NUM_CLIENTS 3l
+#define SIM_TIME 5000.0
+#define NUM_CLIENTS 5l
 #define NUM_SERVER 1l
 
-#define DB_SIZE 10
-#define HOT_DATA_ITEM_LIMIT 3
-#define COLD_DATA_ITEM_START 4
+#define DB_SIZE 1000
+#define HOT_DATA_ITEM_LIMIT 49
+#define COLD_DATA_ITEM_START 50
 
-#define CACHE_SIZE 5
+#define CACHE_SIZE 100
 
 #define BROADCAST_INTERVAL 20
 #define T_UPDATE 10
-#define T_QUERY 10
+#define T_QUERY 100
 #define HOT_DATA_UPDATE_PROB 0.33
 #define HOT_DATA_ACCESS_PROB 0.8
 
@@ -76,10 +76,25 @@ long is_duplicated();
 long get_ir_size();
 void clear_ir_list();
 
+
+/* measurement variable */
+long cache_hit;
+long cache_miss;
+long T_update;
+
 void sim() {
+
+    printf("Enter Mean update arrival time (T_update) in seconds:\n");
+    scanf("%lf", &T_update);
+    printf("You've entered T_update: %lf\n", T_update);
+
     create("sim");
     init();
     hold(SIM_TIME);
+
+    printf("#Cache hit: %ld #Cache miss: %ld\n", cache_hit, cache_miss);
+    printf("#Cache hit ratio %.2f", cache_hit/(float)(cache_hit + cache_miss));
+
 }
 
 void init() {
@@ -192,7 +207,7 @@ void update_data_items() {
     create("update");
     printf("Updating data items\n");
     while(clock < SIM_TIME){
-        hold(exponential(T_UPDATE));
+        hold(exponential(T_update));
         if (uniform(0.0, 1.0) <= 0.33) {
             /* rand() % (max_number + 1 - minimum_number) + minimum_number */
             /* rand() % (65 + 1 - 0) + 0 */
@@ -307,8 +322,8 @@ void receive_ir(long n) {
                 }              
             }
         }
-        printf("--------Cache details of Node %ld--------\n", n);
-        for (i = 0; i < CACHE_SIZE; i ++) {
+        printf("--------Cache details of Node %ld (first five cache items)--------\n", n);
+        for (i = 0; i < 5; i ++) {
             printf("Node %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
         }
     } 
@@ -319,8 +334,14 @@ int is_cached(long n, long item_id) {
     for (i = 0; i < CACHE_SIZE; i++) {
         if (cache_size[n][i].id == item_id) {
             cache_size[n][i].last_accessed_time = clock;
+            if (clock > 1000) {
+                cache_hit++;
+            }
             return 1;
         } else {
+            if (clock > 1000) {
+                cache_miss++;
+            }
             return 0;
         }
     }
