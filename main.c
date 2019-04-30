@@ -2,6 +2,13 @@
 #include <csim.h>
 #include <stdio.h>
 
+/*
+TO-DO list
+1.) query delay
+2.) number query served per IR
+*/
+
+
 
 /* #define is used to define CONSTANT */
 #define SIM_TIME 50000.0
@@ -72,8 +79,8 @@ void receive_ir();
 
 /* utility function */
 int is_cached();
-long is_duplicated();
-long get_ir_size();
+int is_duplicated();
+int get_ir_size();
 void clear_ir_list();
 
 /* measurement variable */
@@ -106,7 +113,7 @@ void sim() {
 void init() {
     long i;
     char str[24];
-    
+
     max_events(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
     max_mailboxes(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);                     
     max_messages(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
@@ -143,10 +150,10 @@ void server(long n) {
     }
     printf("Calling IR\n");
     
-    update_data_items();
-    
+    update_data_items();  
     receive_message();
     invalidation_report();
+
     while(clock < SIM_TIME){
         hold(exponential(1));  
     }   
@@ -201,9 +208,9 @@ void invalidation_report() {
     
 }
 
-long get_ir_size(long l_bcast[]) {
-    long i;
-    long counter = 0;
+int get_ir_size(long l_bcast[]) {
+    int i;
+    int counter = 0;
     printf("Getting IR size\n");
     for (i = 0; i < 100; i++) {
         if (l_bcast[i] != -1 && l_bcast[i] != 0) {
@@ -233,14 +240,14 @@ void update_data_items() {
             database[rand_hot_item].last_updated_time = clock;
             printf("Updating HOT DATA ITEM at index %ld with time %6.3f\n", rand_hot_item, database[rand_hot_item].last_updated_time);
             l_bcast[counter] = database[rand_hot_item].id;
-            counter += 1;
+            counter++;
             printf("add updated hot data id %ld to l_bcast %ld counter %ld\n", l_bcast[counter-1], database[rand_hot_item].id, counter-1);
         } else {
             long rand_cold_item = rand() % ((DB_SIZE - 1) + 1 - COLD_DATA_ITEM_START) + COLD_DATA_ITEM_START;
             database[rand_cold_item].last_updated_time = clock;
             printf("Updating COLD DATA ITEM at index %ld with time %6.3f\n", rand_cold_item, database[rand_cold_item].last_updated_time);
             l_bcast[counter] = database[rand_cold_item].id;
-            counter += 1;
+            counter++;
             printf("add updated cold data id %ld to l_bcast %ld counter %ld\n", l_bcast[counter-1], database[rand_cold_item].id, counter-1);
         }
     }   
@@ -257,13 +264,13 @@ void receive_message() {
         if (!is_duplicated(l_bcast, q->item_id) && counter < 100) {
             l_bcast[counter] = q->item_id;
             printf("Server receives query request id %ld and counter = %ld\n", l_bcast[counter], counter);  
-            counter += 1;                    
+            counter++;                    
         }
     }
 }
 
-long is_duplicated(long l_bcast[], long id) {
-    long i;
+int is_duplicated(long l_bcast[], long id) {
+    int i;
     for (i = 0; i < 100; i++) {
         if (id == l_bcast[i]) {
             printf("Id %ld is duplicated\n", id);
@@ -306,7 +313,7 @@ void generate_query(long n) {
             /* rand() % (65 + 1 - 0) + 0 */
             long rand_access_hot_item_id = rand() % (HOT_DATA_ITEM_LIMIT + 1 - 0) + 0;
             /* check cache */
-            if (is_cached(n, rand_access_hot_item_id) != 1) {
+            if (!is_cached(n, rand_access_hot_item_id)) {
                 /* generate query request */
                 q->item_id = rand_access_hot_item_id;
                 send(node[0].mbox, (long)q);
@@ -315,52 +322,13 @@ void generate_query(long n) {
         } else {
             long rand_access_cold_item_id = rand() % ((DB_SIZE - 1) + 1 - COLD_DATA_ITEM_START) + COLD_DATA_ITEM_START;
             /* check cache */
-            if (is_cached(n, rand_access_cold_item_id) != 1) {
+            if (!is_cached(n, rand_access_cold_item_id)) {
                 q->item_id = rand_access_cold_item_id;
                 send(node[0].mbox, (long)q);
                 printf("Client %ld is generating query request at COLD data... with id %ld %6.3f\n", n, rand_access_cold_item_id, clock);
             }
         }
     }  
-}
-
-void receive_ir(long n) {
-    create("receive_ir");
-    printf("receiving IR...\n");
-    while(clock < SIM_TIME){
-        hold(exponential(1));
-        receive(node[n].mbox, (long*)&ir);
-        printf("Test ..................... receive IR function %ld\n", (long*)&ir);
-        printf("Node %ld address %ld, receives IR size %ld\n", n, &cache_size[n], ir[0].ir_size);
-        long i, j;
-        for (i = 0; i < ir[0].ir_size; i++) {
-            printf("IR info: --> id %ld and updated time %6.3f at node %ld\n", ir[i].id, ir[i].last_updated_time, n);
-            for (j = 0; j < CACHE_SIZE; j++) {
-                if (cache_size[n][j].id != -1) {
-                    if (ir[i].id == cache_size[n][j].id && ir[i].last_updated_time >= cache_size[n][j].last_updated_time) {
-                        cache_size[n][j].last_updated_time = ir[i].last_updated_time;
-                        /*printf("UPDATED DATA at cache index %ld, updated time %6.3f\n", j, cache_size[n][j].last_updated_time);*/
-                        break;
-                    } 
-                } else {
-                    cache_size[n][j].id = ir[i].id;
-                    cache_size[n][j].last_updated_time = ir[i].last_updated_time;
-                    /*printf("NEW DATA at cache index %ld, updated time %6.3f\n", j, cache_size[n][j].last_updated_time);*/
-                    break;
-                }              
-            }
-        }
-        printf("--------Cache details of Node %ld (first five cache items)--------\n", n);
-        if (n == 1) {
-            for (i = 0; i < 20; i ++) {
-                printf("Node %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
-            }
-        } else {
-            for (i = 0; i < 5; i ++) {
-                printf("Node %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
-            }
-        }   
-    } 
 }
 
 int is_cached(long n, long item_id) {
@@ -385,4 +353,70 @@ int is_cached(long n, long item_id) {
     }
 
     return cached;
+}
+
+void receive_ir(long n) {
+    create("receive_ir");
+    printf("receiving IR...\n");
+    while(clock < SIM_TIME){
+        hold(exponential(1));
+        receive(node[n].mbox, (long*)&ir);
+        printf("Test ..................... receive IR function %ld\n", (long*)&ir);
+        printf("Node %ld address %ld, receives IR size %ld\n", n, &cache_size[n], ir[0].ir_size);
+        int i, j;
+        for (i = 0; i < ir[0].ir_size; i++) {
+            printf("IR info: --> id %ld and updated time %6.3f at node %ld\n", ir[i].id, ir[i].last_updated_time, n);
+            for (j = 0; j < CACHE_SIZE; j++) {
+                if (cache_size[n][j].id != -1) {
+                    if (ir[i].id == cache_size[n][j].id && ir[i].last_updated_time >= cache_size[n][j].last_updated_time) {
+                        cache_size[n][j].last_updated_time = ir[i].last_updated_time;
+                        /*printf("UPDATED DATA at cache index %ld, updated time %6.3f\n", j, cache_size[n][j].last_updated_time);*/
+                        ir[i].id = -1;
+                        break;
+                    }
+                } else {
+                    cache_size[n][j].id = ir[i].id;
+                    cache_size[n][j].last_updated_time = ir[i].last_updated_time;
+                    /*printf("NEW DATA at cache index %ld, updated time %6.3f\n", j, cache_size[n][j].last_updated_time);*/
+                    break;
+                }              
+            }
+        }
+
+        /* LRU section */
+        for (i = 0; i < ir[0].ir_size; i++) {
+            if (ir[i].id != -1) {
+                long lru_idx = get_lru_idx();
+                cache_size[n][lru_idx].id = ir[i].id;
+                cache_size[n][lru_idx].last_updated_time = ir[i].last_updated_time;
+                cache_size[n][lru_idx].last_accessed_time = clock;
+            }
+        }
+
+
+        printf("--------Cache details of Node %ld (first five cache items)--------\n", n);
+        if (n == 1) {
+            for (i = 0; i < 20; i ++) {
+                printf("Node %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
+            }
+        } else {
+            for (i = 0; i < 5; i ++) {
+                printf("Node %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
+            }
+        }   
+    } 
+}
+
+int get_lru_id(long n, struct cache_items cache_size[][]) {
+    int i, lru_idx;
+    long lru_time;
+    lru_idx = 0;
+    lru_time = cache_size[n][0].last_accessed_time;
+    for (i = 1; i < CACHE_SIZE; i++) {
+        if (cache_size[n][i].last_accessed_time < lru_time) {
+            lru_time = cache_size[n][i].last_accessed_time;
+            lru_idx = i;
+        }
+    }
+    return lru_idx;
 }
