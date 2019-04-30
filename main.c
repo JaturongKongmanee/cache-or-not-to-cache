@@ -5,7 +5,7 @@
 
 /* #define is used to define CONSTANT */
 #define SIM_TIME 50000.0
-#define NUM_CLIENTS 6l
+#define NUM_CLIENTS 100l
 #define NUM_SERVER 1l
 
 #define DB_SIZE 1000
@@ -80,12 +80,19 @@ void clear_ir_list();
 long cache_hit;
 long cache_miss;
 long T_update;
+long T_query;
+long query_count;
+
 
 void sim() {
 
     printf("Enter Mean update arrival time (T_update) in seconds:\n");
     scanf("%ld", &T_update);
     printf("You've entered T_update: %ld\n", T_update);
+
+    printf("Enter Mean query generate time (T_update) in seconds:\n");
+    scanf("%ld", &T_query);
+    printf("You've entered T_query: %ld\n", T_query);
 
     create("sim");
     init();
@@ -100,6 +107,10 @@ void init() {
     long i;
     char str[24];
     
+    max_events(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
+    max_mailboxes(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);                     
+    max_messages(NUM_CLIENTS * NUM_CLIENTS + NUM_CLIENTS);
+
     sprintf(str, "server_mailbox.%d", 0);
     node[0].mbox = mailbox(str);
 
@@ -238,6 +249,7 @@ void update_data_items() {
 void receive_message() {
     create("receive_message");
     counter = 0;
+    status_mailboxes();
     while(clock < SIM_TIME){
         hold(exponential(1));
         receive(node[0].mbox, (long*)&q);
@@ -288,7 +300,7 @@ void client(long n) {
 void generate_query(long n) {
     create("query");
     while(clock < SIM_TIME) {
-        hold(exponential(T_QUERY));
+        hold(exponential(T_query));
         if (uniform(0.0, 1.0) <= 0.8) {
             /* rand() % (max_number + 1 - minimum_number) + minimum_number */
             /* rand() % (65 + 1 - 0) + 0 */
