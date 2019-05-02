@@ -6,12 +6,13 @@
 TO-DO list
 1.) query delay
 2.) number query served per IR
+3.) send data items in the IR list one by one
 */
 
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 50000.0
+#define SIM_TIME 10000.0
 #define NUM_CLIENTS 100l
 #define NUM_SERVER 1l
 
@@ -56,6 +57,9 @@ struct cache_items {
     TIME last_updated_time;
     TIME last_accessed_time;
 };
+/* Since we know exactly the size of cache,
+and we randomly read/access data items so many time.
+It's good to use array since its reading time complexity is O(1)*/
 struct cache_items cache_size[NUM_CLIENTS][CACHE_SIZE];
 
 struct request {
@@ -384,14 +388,25 @@ void receive_ir(long n) {
         }
 
         /* LRU section */
+        /*printf("-------------------------LRU performing at node %ld-------------------------\n", n);
+        int lru_idx;
+        long lru_time;
         for (i = 0; i < ir[0].ir_size; i++) {
-            if (ir[i].id != -1) {
-                long lru_idx = get_lru_idx();
+            if (ir[i].id != -1) { 
+                lru_idx = 0;
+                lru_time = cache_size[n][0].last_accessed_time;
+                for (j = 1; j < CACHE_SIZE; j++) {
+                    if (cache_size[n][j].last_accessed_time < lru_time) {
+                        lru_time = cache_size[n][j].last_accessed_time;
+                        lru_idx = j;
+                    }
+                }
+                printf("LRU idx %ld\n", lru_idx);
                 cache_size[n][lru_idx].id = ir[i].id;
                 cache_size[n][lru_idx].last_updated_time = ir[i].last_updated_time;
                 cache_size[n][lru_idx].last_accessed_time = clock;
             }
-        }
+        }*/
 
 
         printf("--------Cache details of Node %ld (first five cache items)--------\n", n);
@@ -405,18 +420,4 @@ void receive_ir(long n) {
             }
         }   
     } 
-}
-
-int get_lru_id(long n, struct cache_items cache_size[][]) {
-    int i, lru_idx;
-    long lru_time;
-    lru_idx = 0;
-    lru_time = cache_size[n][0].last_accessed_time;
-    for (i = 1; i < CACHE_SIZE; i++) {
-        if (cache_size[n][i].last_accessed_time < lru_time) {
-            lru_time = cache_size[n][i].last_accessed_time;
-            lru_idx = i;
-        }
-    }
-    return lru_idx;
 }
