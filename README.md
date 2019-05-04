@@ -42,6 +42,7 @@ To simulate a simple inter-process communication protocol using [CSIM](http://ww
   
  ## Acknowledgments
   * **Assistant Professor [Sunho Lim](http://www.myweb.ttu.edu/slim/), Ph.D.**
+  * Valuable suggestion and discussion with **[Chetan Karahalli Srinivasa](https://github.com/kschetan25)**
 
 
 ## References
@@ -52,3 +53,4 @@ To simulate a simple inter-process communication protocol using [CSIM](http://ww
 - [CSIM - U of T](http://www.cs.toronto.edu/~iq/csc354s/)
 - [VIM Tutorial](http://www.cse.msu.edu/~cse420/Tutorials/VIM/vim.tutorial)
 - [Computer Architecture](https://www.cse.msu.edu/~cse420/)
+- [Arrays in C](https://www.cs.swarthmore.edu/~newhall/unixhelp/C_arrays.html)
