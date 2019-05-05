@@ -12,7 +12,7 @@ TO-DO list
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 10000.0
+#define SIM_TIME 100.0
 #define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
@@ -212,13 +212,13 @@ void invalidation_report() {
                 }           
             }
 
+            for (i = 0; i < ir_msg_size; i++) {
+                printf("Testing IR ... data item id %ld, updated time %6.3f, IR size %ld\n", ir[i].id, ir[i].last_updated_time, ir[i].ir_size);
+            }
+
             for (i = 1; i <= NUM_CLIENTS; i++) {   
                 send(node[i].mbox, (long)ir);
                 printf("Broadcasting IR to node %ld \n", i);
-            }
-
-            for (i = 0; i < ir_msg_size; i++) {
-                printf("Testing IR ... data item id %ld, updated time %6.3f, IR size %ld\n", ir[i].id, ir[i].last_updated_time, ir[i].ir_size);
             }
 
             /* clear ir_temp list */
@@ -328,7 +328,7 @@ void receive_request() {
         /*printf("Server is receiving query %ld\n", q->item_id);*/
         if (!is_duplicated(l_bcast, q->item_id) && query_counter < 100) {
             l_bcast[query_counter] = q->item_id;
-            printf("Server receives query request id %ld and counter = %ld\n", l_bcast[query_counter], query_counter);  
+            printf("Server RECEIVES QUERY request id %ld\n", l_bcast[query_counter]);  
             query_counter++;                    
         }
     }
@@ -381,7 +381,7 @@ void generate_query(long n) {
                 /* generate query request */
                 q->item_id = rand_access_hot_item_id;
                 send(node[0].mbox, (long)q);
-                printf("Client %ld is generating query request at HOT data... with id %ld at %6.3f\n", n, rand_access_hot_item_id, clock);
+                printf("Client %ld is GENERATING QUERY request at HOT data... with id %ld at %6.3f\n", n, rand_access_hot_item_id, clock);
             }
         } else {
             long rand_access_cold_item_id = random(COLD_DATA_ITEM_START, DB_SIZE);
@@ -389,7 +389,7 @@ void generate_query(long n) {
             if (!is_cached(n, rand_access_cold_item_id)) {
                 q->item_id = rand_access_cold_item_id;
                 send(node[0].mbox, (long)q);
-                printf("Client %ld is generating query request at COLD data... with id %ld at %6.3f\n", n, rand_access_cold_item_id, clock);
+                printf("Client %ld is GENERATING QUERY request at COLD data... with id %ld at %6.3f\n", n, rand_access_cold_item_id, clock);
             }
         }
     }  
