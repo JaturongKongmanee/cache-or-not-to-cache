@@ -12,7 +12,7 @@ TO-DO list
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 50000.0
+#define SIM_TIME 10000.0
 #define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
@@ -48,6 +48,7 @@ struct ir_msg {
     long ir_size;
 };
 struct ir_msg *ir;
+struct ir_msg *data_item_msg;
 long ir_temp[100];
 long l_bcast[100];
 
@@ -79,11 +80,14 @@ void invalidation_report();
 void receive_request();
 long ir_counter;
 long query_counter;
+long ir_msg_size;
+long bcast_list_size;
 
 /* client side and its function*/
 void client();
 void generate_query();
 void receive_ir();
+void receive_data_item();
 
 /* utility function */
 int is_cached();
@@ -97,6 +101,11 @@ long cache_miss;
 long T_update;
 long T_query;
 long query_count;
+long num_query_per_interval;
+
+
+
+
 
 
 void sim() {
@@ -115,6 +124,7 @@ void sim() {
 
     printf("#Cache hit: %ld #Cache miss: %ld\n", cache_hit, cache_miss);
     printf("#Cache hit ratio %.2f\n", cache_hit/(float)(cache_hit + cache_miss));
+    printf("#Queries served per interval: raw %ld, avg: %.2f\n", num_query_per_interval, num_query_per_interval/((SIM_TIME)/BROADCAST_INTERVAL));
 
 }
 
@@ -169,9 +179,9 @@ void server(long n) {
 
 void invalidation_report() {
     create("ir");
-    long ir_msg_size;
-    long bcast_list_size;
+    
     ir = NULL;
+    data_item_msg = NULL;
     printf("Creating IR ...\n");
     while(clock < SIM_TIME){
         hold(BROADCAST_INTERVAL);    
@@ -217,33 +227,44 @@ void invalidation_report() {
             printf("IR counter is set to 0\n");
         }
 
-
         /* broadcast L_bcast */
-        /*bcast_list_size = get_list_size(l_bcast, 1);
+        /*if (data_item_msg != NULL) {
+            free(data_item_msg);
+            data_item_msg = NULL;
+            printf("Deallocating DATA ITEM's memory ... \n");
+        }*/
+   
+        bcast_list_size = get_list_size(l_bcast, 1);
+        num_query_per_interval += bcast_list_size;
         if (bcast_list_size > 0) {
-            printf("Broadcasting L_bcast ...\n");
-            printf("L_bcast size %ld\n", bcast_list_size);
-            long k, j;
-            for (k = 0; k < bcast_list_size; k++) {
-                printf("L_bcast item %ld ---- %ld\n", ir[k].id, l_bcast[k]);
-            }
-            for (k = 0; k < bcast_list_size; k++) {
-                ir[k].id = database[l_bcast[k]].id;          
-                ir[k].last_updated_time = database[l_bcast[k]].last_updated_time;
-                ir[k].ir_size = bcast_list_size;
+            data_item_msg = (struct ir_msg *)malloc(sizeof(struct ir_msg) * bcast_list_size);
+            if (data_item_msg == NULL) {
+                printf("Memory allocation error\n");
             }
 
-            for (k = 0; k < bcast_list_size; k++) {
-                for (j = 1; j <= NUM_CLIENTS; j++) {   
-                    send(node[j].mbox, (long)ir);
-                    printf("Broadcasting L_bcast id %ld, time %6.3f, size %ld, to node %ld \n", ir[j].id, ir[j].last_updated_time, ir[j].ir_size, j);
-                }
+            printf("Creating an L_bcast ... with size %ld at address %ld\n", bcast_list_size, &data_item_msg);
+            long i;
+            for (i = 0; i < bcast_list_size; i++) {
+                if (l_bcast[i] < 1000) {
+                    data_item_msg[i].id = database[l_bcast[i]].id;          
+                    data_item_msg[i].last_updated_time = database[l_bcast[i]].last_updated_time;
+                    data_item_msg[i].ir_size = bcast_list_size;
+                }           
+            }
+
+            for (i = 1; i <= NUM_CLIENTS; i++) {   
+                send(node[i].mbox, (long)(data_item_msg));
+                printf("Broadcasting DATA ITEM to node %ld \n", i);
+            }
+
+            for (i = 0; i < bcast_list_size; i++) {
+                printf("Testing DATA ITEM ... id %ld, updated time %6.3f, IR size %ld\n", data_item_msg[i].id, data_item_msg[i].last_updated_time, data_item_msg[i].ir_size);
             }
 
             clear_list(l_bcast);
             query_counter = 0;
-            printf("QUERY counter is set to 0\n");
-        }*/
+            printf("QUERY counter is set to 0\n");      
+        }
     }
     
 }
@@ -317,10 +338,10 @@ int is_duplicated(long list[], long id) {
     int i;
     for (i = 0; i < 100; i++) {
         if (id == list[i]) {
-            printf("Id %ld is duplicated\n", id);
+            /*printf("Id %ld is duplicated\n", id);*/
             return 1;
         } else {
-            printf("Id %ld is NOT duplicated\n", id);
+            /*printf("Id %ld is NOT duplicated\n", id);*/
             return 0;
         }
     }
@@ -342,6 +363,7 @@ void client(long n) {
     printf("Node %ld, cache address is %ld\n", n, &cache_size[n]);
 
     receive_ir(n);
+    /*receive_data_item(n);*/
     generate_query(n);
     while(clock < SIM_TIME){
         hold(exponential(1));
@@ -403,8 +425,8 @@ void receive_ir(long n) {
     while(clock < SIM_TIME){
         hold(exponential(1));
         receive(node[n].mbox, (long*)&ir);
-        printf("Testing ..................... receive IR function %ld\n", (long*)&ir);
-        printf("Node %ld address %ld, receives IR size %ld\n", n, &cache_size[n], ir[0].ir_size);
+        /*printf("Testing ..................... receive IR function %ld\n", (long*)&ir);*/
+        printf("Node %ld address %ld, receives MESSAGE size %ld\n", n, &cache_size[n], ir[0].ir_size);
         int i, j;
         for (i = 0; i < ir[0].ir_size; i++) {
             printf("data item id %ld\n", ir[i].id);
@@ -445,4 +467,5 @@ void receive_ir(long n) {
         }*/   
     } 
 }
+
 
