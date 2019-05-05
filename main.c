@@ -12,15 +12,15 @@ TO-DO list
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 100.0
+#define SIM_TIME 1000.0
 #define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
-#define DB_SIZE 1000
-#define HOT_DATA_ITEM_LIMIT 49
-#define COLD_DATA_ITEM_START 50
+#define DB_SIZE 20
+#define HOT_DATA_ITEM_LIMIT 5
+#define COLD_DATA_ITEM_START 6
 
-#define CACHE_SIZE 100
+#define CACHE_SIZE 10
 
 #define BROADCAST_INTERVAL 20
 #define T_UPDATE 10
@@ -46,6 +46,7 @@ struct ir_msg {
     long id;
     TIME last_updated_time;
     long ir_size;
+    int ir_status;
 };
 struct ir_msg *ir;
 struct ir_msg *data_item_msg;
@@ -103,11 +104,6 @@ long T_query;
 long query_count;
 long num_query_per_interval;
 
-
-
-
-
-
 void sim() {
 
     printf("Enter Mean update arrival time (T_update) in seconds:\n");
@@ -132,8 +128,8 @@ void init() {
     long i;
     char str[24];
 
-    max_events(NUM_CLIENTS * NUM_CLIENTS * 10 + NUM_CLIENTS);
-    max_mailboxes(NUM_CLIENTS * NUM_CLIENTS * 10 + NUM_CLIENTS);                     
+    max_events(NUM_CLIENTS * NUM_CLIENTS * 100 + NUM_CLIENTS);
+    max_mailboxes(NUM_CLIENTS * NUM_CLIENTS * 100 + NUM_CLIENTS);                     
     max_messages(NUM_CLIENTS * NUM_CLIENTS * 100 + NUM_CLIENTS);
 
     sprintf(str, "server_mailbox.%d", 0);
@@ -209,6 +205,7 @@ void invalidation_report() {
                     ir[i].id = database[ir_temp[i]].id;          
                     ir[i].last_updated_time = database[ir_temp[i]].last_updated_time;
                     ir[i].ir_size = ir_msg_size;
+                    ir[i].ir_status = 1;
                 }           
             }
 
@@ -249,6 +246,7 @@ void invalidation_report() {
                     data_item_msg[i].id = database[l_bcast[i]].id;          
                     data_item_msg[i].last_updated_time = database[l_bcast[i]].last_updated_time;
                     data_item_msg[i].ir_size = bcast_list_size;
+                    data_item_msg[i].ir_status = 0;
                 }           
             }
 
@@ -265,8 +263,7 @@ void invalidation_report() {
             query_counter = 0;
             printf("QUERY counter is set to 0\n");      
         }
-    }
-    
+    }  
 }
 
 int get_list_size(long list[], long bit) {
@@ -338,10 +335,10 @@ int is_duplicated(long list[], long id) {
     int i;
     for (i = 0; i < 100; i++) {
         if (id == list[i]) {
-            /*printf("Id %ld is duplicated\n", id);*/
+            printf("Id %ld is duplicated\n", id);
             return 1;
         } else {
-            /*printf("Id %ld is NOT duplicated\n", id);*/
+            printf("Id %ld is NOT duplicated\n", id);
             return 0;
         }
     }
@@ -363,7 +360,6 @@ void client(long n) {
     printf("Node %ld, cache address is %ld\n", n, &cache_size[n]);
 
     receive_ir(n);
-    /*receive_data_item(n);*/
     generate_query(n);
     while(clock < SIM_TIME){
         hold(exponential(1));
@@ -428,13 +424,37 @@ void receive_ir(long n) {
         /*printf("Testing ..................... receive IR function %ld\n", (long*)&ir);*/
         printf("Node %ld address %ld, receives MESSAGE size %ld\n", n, &cache_size[n], ir[0].ir_size);
         int i, j;
-        for (i = 0; i < ir[0].ir_size; i++) {
-            printf("data item id %ld\n", ir[i].id);
-            for (j = 0; j < CACHE_SIZE; j++) {
-                if (cache_size[n][j].id == ir[i].id) {
-                    cache_size[n][j].valid = 0;
-                    printf("Invalidating cache id %ld, valid %ld, updated time %6.3f ... at node %ld\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, n);
-                }           
+        if (ir[0].ir_status == 1) {
+            for (i = 0; i < ir[0].ir_size; i++) {
+                printf("IR id %ld\n", ir[i].id);
+                for (j = 0; j < CACHE_SIZE; j++) {
+                    if (cache_size[n][j].id == ir[i].id) {
+                        cache_size[n][j].valid = 0;
+                        printf("Invalidating cache id %ld, valid %ld, updated time %6.3f ... at node %ld\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, n);
+                    }           
+                }
+            }
+        } else {
+            for (i = 0; i < ir[0].ir_size; i++) {
+                printf("DATA ITEM id %ld\n", ir[i].id);
+                for (j = 0; j < CACHE_SIZE; j++) {
+                    if (cache_size[n][j].id != -1) {
+                        if (ir[i].id == cache_size[n][j].id && ir[i].last_updated_time >= cache_size[n][j].last_updated_time) {
+                            cache_size[n][j].valid = 1;
+                            cache_size[n][j].last_updated_time = ir[i].last_updated_time;
+                            printf("CACHED DATA ITEM is updated: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);
+    
+                            break;
+                        }
+                    } else {
+                        cache_size[n][j].id = ir[i].id;
+                        cache_size[n][j].valid = 1;
+                        cache_size[n][j].last_updated_time = ir[i].last_updated_time;
+                        cache_size[n][j].last_accessed_time = 0;
+                        printf("NEW DATA ITEM is cached: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);
+                        break;
+                    }             
+                }
             }
         }
 
