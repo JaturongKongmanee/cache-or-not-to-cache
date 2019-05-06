@@ -12,15 +12,15 @@ TO-DO list
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 1000.0
+#define SIM_TIME 500000.0
 #define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
-#define DB_SIZE 20
-#define HOT_DATA_ITEM_LIMIT 5
-#define COLD_DATA_ITEM_START 6
+#define DB_SIZE 100
+#define HOT_DATA_ITEM_LIMIT 49
+#define COLD_DATA_ITEM_START 50
 
-#define CACHE_SIZE 10
+#define CACHE_SIZE 100
 
 #define BROADCAST_INTERVAL 20
 #define T_UPDATE 10
@@ -95,6 +95,9 @@ int is_cached();
 int is_duplicated();
 int get_list_size();
 void clear_list();
+int is_cache_full();
+int get_oldest_invalid();
+int get_oldest_valid();
 
 /* measurement variable */
 long cache_hit;
@@ -120,7 +123,7 @@ void sim() {
 
     printf("#Cache hit: %ld #Cache miss: %ld\n", cache_hit, cache_miss);
     printf("#Cache hit ratio %.2f\n", cache_hit/(float)(cache_hit + cache_miss));
-    printf("#Queries served per interval: raw %ld, avg: %.2f\n", num_query_per_interval, num_query_per_interval/((SIM_TIME)/BROADCAST_INTERVAL));
+    printf("#Queries served per interval: raw %ld, avg: %.5f\n", num_query_per_interval, num_query_per_interval/((SIM_TIME)/BROADCAST_INTERVAL));
 
 }
 
@@ -381,7 +384,6 @@ void generate_query(long n) {
             }
         } else {
             long rand_access_cold_item_id = random(COLD_DATA_ITEM_START, DB_SIZE);
-            /* check cache */
             if (!is_cached(n, rand_access_cold_item_id)) {
                 q->item_id = rand_access_cold_item_id;
                 send(node[0].mbox, (long)q);
@@ -392,19 +394,19 @@ void generate_query(long n) {
 }
 
 int is_cached(long n, long item_id) {
-    long cached = 0;
+    int cached = 0;
     long i;
     for (i = 0; i < CACHE_SIZE; i++) {
         if (cache_size[n][i].id == item_id) {
             cache_size[n][i].last_accessed_time = clock;
-            if (clock > 500) {
+            if (is_cache_full(n)) {
                 cache_hit++;
             }
             printf("node %ld CACHE HIT id %ld ---- generated query id %ld\n", n, cache_size[n][i].id, item_id);
             cached = 1;
         }
     }
-    if (clock > 1000) {
+    if (is_cache_full(n)) {
         cache_miss++;
     }
 
@@ -421,10 +423,15 @@ void receive_ir(long n) {
     while(clock < SIM_TIME){
         hold(exponential(1));
         receive(node[n].mbox, (long*)&ir);
-        /*printf("Testing ..................... receive IR function %ld\n", (long*)&ir);*/
-        printf("Node %ld address %ld, receives MESSAGE size %ld\n", n, &cache_size[n], ir[0].ir_size);
-        int i, j;
         if (ir[0].ir_status == 1) {
+            printf("Node %ld address %ld, receives IR size %ld\n", n, &cache_size[n], ir[0].ir_size);
+        } else {
+            printf("Node %ld address %ld, receives DATA ITEM size %ld\n", n, &cache_size[n], ir[0].ir_size);
+        }
+        long lru_temp[100] = {0};
+        int lru_counter = 0;
+        if (ir[0].ir_status == 1) {
+            int i, j;
             for (i = 0; i < ir[0].ir_size; i++) {
                 printf("IR id %ld\n", ir[i].id);
                 for (j = 0; j < CACHE_SIZE; j++) {
@@ -435,16 +442,20 @@ void receive_ir(long n) {
                 }
             }
         } else {
+            int i, j;
             for (i = 0; i < ir[0].ir_size; i++) {
                 printf("DATA ITEM id %ld\n", ir[i].id);
                 for (j = 0; j < CACHE_SIZE; j++) {
                     if (cache_size[n][j].id != -1) {
-                        if (ir[i].id == cache_size[n][j].id && ir[i].last_updated_time >= cache_size[n][j].last_updated_time) {
+                        if (ir[i].id == cache_size[n][j].id && cache_size[n][j].valid == 0) {
                             cache_size[n][j].valid = 1;
                             cache_size[n][j].last_updated_time = ir[i].last_updated_time;
-                            printf("CACHED DATA ITEM is updated: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);
-    
-                            break;
+                            printf("CACHED DATA ITEM is updated: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);   
+                            
+                        } else {
+                            lru_temp[lru_counter] = i;
+                            lru_counter++;
+                            printf("+++++++++++++++++  %ld\n", ir[i].id);
                         }
                     } else {
                         cache_size[n][j].id = ir[i].id;
@@ -458,34 +469,89 @@ void receive_ir(long n) {
             }
         }
 
-
-
-        /*printf("--------Cache details of Node %ld (first five cache items)--------\n", n);
-        for (i = 0; i < 5; i ++) {
-            printf("Node %ld, valid %ld, id %ld, updated_time %6.3f, access_time %6.3f\n", n, cache_size[n][i].valid, cache_size[n][i].id, cache_size[n][i].last_updated_time, cache_size[n][i].last_accessed_time);
-        }*/
-
-        /* LRU section */
-        /*printf("-------------------------LRU performing at node %ld-------------------------\n", n);
-        int lru_idx;
-        long lru_time;
-        for (i = 0; i < ir[0].ir_size; i++) {
-            if (ir[i].id != -1) { 
-                lru_idx = 0;
-                lru_time = cache_size[n][0].last_accessed_time;
-                for (j = 1; j < CACHE_SIZE; j++) {
-                    if (cache_size[n][j].last_accessed_time < lru_time) {
-                        lru_time = cache_size[n][j].last_accessed_time;
-                        lru_idx = j;
-                    }
-                }
-                printf("LRU idx %ld\n", lru_idx);
-                cache_size[n][lru_idx].id = ir[i].id;
-                cache_size[n][lru_idx].last_updated_time = ir[i].last_updated_time;
-                cache_size[n][lru_idx].last_accessed_time = clock;
+        int q;
+        int lru_size = 0;       
+        for (q = 0; q < 100; q++) {
+            if (lru_temp[q] != 0) {
+                lru_size++;
             }
-        }*/   
-    } 
+        }
+        
+        if (lru_size > 0) {
+            printf("LRU size %ld\n", lru_size);
+            printf("-------------------------LRU performing at node %ld-------------------------\n", n);
+            int k;
+            for (k = 0; k <= lru_size; k++) {
+                printf("lru data item id %ld\n", ir[lru_temp[k]].id);
+                int inv_idx = get_oldest_invalid(n);
+                int val_idx = get_oldest_valid(n);
+                if (inv_idx != 0) {
+                    printf("OLDEST INVALID data item id %ld idx %ld --- ", cache_size[n][inv_idx].id, inv_idx);
+                    cache_size[n][inv_idx].id = ir[lru_temp[k]].id;
+                    cache_size[n][inv_idx].valid = 1;
+                    cache_size[n][inv_idx].last_updated_time = ir[lru_temp[k]].last_updated_time;
+                    cache_size[n][inv_idx].last_accessed_time = 0;
+                    printf("is replaced by new data item %ld\n", cache_size[n][inv_idx].id);
+                } 
+                else if (val_idx != 0) {
+                    printf("OLDEST VVVVALID data item id %ld idx %ld --- ", cache_size[n][val_idx].id, val_idx);
+                    cache_size[n][val_idx].id = ir[lru_temp[k]].id;
+                    cache_size[n][val_idx].valid = 1;
+                    cache_size[n][val_idx].last_updated_time = ir[lru_temp[k]].last_updated_time;
+                    cache_size[n][val_idx].last_accessed_time = 0;
+                    printf("is replaced by new data item %ld\n", cache_size[n][val_idx].id);
+                } 
+            }
+        }
+
+        /* clear lru temp */
+        int v; 
+        for (v = 0; v < 100; v++) {
+            lru_temp[v] = 0;
+        }
+        lru_counter = 0;
+        /*printf("------------ clear LRU temp ------------\n");*/
+    }
+}
+
+int get_oldest_invalid(long n) {
+    int k;
+    int lru_idx = 0;
+    long lru_time = cache_size[n][0].last_updated_time;
+    for (k = 1; k < CACHE_SIZE; k++) {
+        if (cache_size[n][k].valid == 0 && cache_size[n][k].last_updated_time <= lru_time) {
+            lru_time = cache_size[n][k].last_updated_time;
+            lru_idx = k;
+        }
+    }
+    return lru_idx;
+}
+
+int get_oldest_valid(long n) {
+    int k;
+    int lru_idx = 0;
+    long lru_time = cache_size[n][0].last_accessed_time;
+    for (k = 1; k < CACHE_SIZE; k++) {
+        if (cache_size[n][k].valid == 1 && cache_size[n][k].last_accessed_time <= lru_time) {
+            lru_time = cache_size[n][k].last_accessed_time;
+            lru_idx = k;
+        }
+    }
+    return lru_idx;
 }
 
 
+int is_cache_full(long n) {
+    int full = 1;
+    long i;
+    for (i = 0; i < CACHE_SIZE; i++) {
+        if (cache_size[n][i].id == -1) {
+            full = 0;
+            return full;
+        }
+    }
+    if (full) {
+        printf("node %ld cache is full\n", n);
+    }
+    return full;
+}
