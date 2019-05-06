@@ -38,7 +38,7 @@ Mobile Environments](http://www.cs.columbia.edu/~danr/courses/6762/Summer03/week
 |        |  | int is_cache_full() |
 |        |  | int get_oldest_invalid() |
 
- ### Compilation 
+ ### Compilation & Run
  ```python
  csim64.gcc project.c -o project
  ./project
