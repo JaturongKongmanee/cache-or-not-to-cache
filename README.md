@@ -1,20 +1,43 @@
 # cache-or-not-to-cache
 ## Introduction
-To simulate a simple inter-process communication protocol using [CSIM](http://www.mesquite.com/).
- * There are five nodes in the network. Each node is fully connected to each others.
- * Each node generates a HELLO packet with the inter arrival time of exponential distribution (average 5 seconds).
- * A sending node transmits a HELLO packet to a randomly chosen receiving node. A receiving node replies a HELLO_ACK packet back after it receives packet. 
- If the sending node receives the HELLO_ACK, the transmission is successful.
- * The transmission time is 0.1.
- * The transmission delay (e.g., local processing time) is 0.2.
- * The loss probabilities of packet are (0.1, 0.2, 0.3, 0.4, 0.5), due to the unreliable network quality.
- * The timeout period is 2 seconds. If sending node does not receive the HELLO_ACK packet within timeout period, it retransmits a HELLO packet. 
- If sending node still does not receive the HELLO_ACK, then transmission is failed.
- 
+To simulate a simple IR-based cache invalidation model using [CSIM](http://www.mesquite.com/).
+ * Reference paper: [A Scalable Low-Latency Cache Invalidation Strategy for
+Mobile Environments](http://www.cs.columbia.edu/~danr/courses/6762/Summer03/week13/mobile-cache.pdf)
+
+
  ## Getting Started
  ### Prerequisites
   * install [Code::Blocks](http://www.codeblocks.org/) and [C Programming Language](https://www.geeksforgeeks.org/c-language-set-1-introduction/)
   * install [CSIM](http://www.mesquite.com/)
+
+### System Parameters
+|  |  |
+| --- | --- |
+| Number of clients | 100 |
+| Database size | 1000 items |
+| Data item size | 1024 bytes |
+| Broadcast interval (L) | 20 seconds |
+| Broadcast bandwidth | 10000 bits/s |
+| Cache size | 50 to 300 items |
+| Mean query generate time (T_query) | 25s to 300s |
+| Mean update arrival time (T_update) | 20s to 10000s |
+| Hot data items | 1 to 50 |
+| Cold data items | remainder of DB |
+| Hot data access probability | 0.8 |
+| Hot data update probability | 0.33|
+
+### Simulation Model and Functions
+| | Main Functions | Utility Functions |
+| --- | --- | --- |
+| Server | void update_data_items() | int is_duplicated() |
+|        | void invalidation_report() | int get_list_size() |
+|        | void receive_request() | void clear_list() |
+|        |  | int get_list_size() |
+| Client | void generate_query() |  int is_cached() |
+|        | void receive_ir() | lnt get_oldest_valid() |
+|        |  | int is_cache_full() |
+|        |  | int get_oldest_invalid() |
+
  ### Compilation & Run
  ```
  csim64.gcc project.c -o project
@@ -36,6 +59,25 @@ To simulate a simple inter-process communication protocol using [CSIM](http://ww
  Node 3 generates 110 packets
  Node 4 generates 116 packets
 ```
+
+
+ ### Simulation Results
+ * **The Cache Hit Ratio**
+  ![cache_hit_ratio_diff_node](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/cache_hit_ratio_diff_node.png) 
+  ![cache_hit_ratio_diff_cache_size](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/cache_hit_ratio_diff_cache_size.png) 
+  <br/><br/>
+  
+  
+  * **The Query Delay**
+  ![query_delay](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/queies_served_per_IR_interval.png) 
+  <br/><br/>
+ 
+ 
+ * **The Number of Queries Served Per IR Interval**
+ ![queies_served_per_IR_interval](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/queies_served_per_IR_interval.png) 
+  <br/><br/>
+  
+
 
  ## Author
   * **Jaturong Kongmanee** - [jaturong.me](http://jaturong.me/)
