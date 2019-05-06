@@ -73,17 +73,18 @@ Query delay (seconds):        5.353
 
 
  ### Simulation Results
-* **The Cache Hit Ratio**
+ #### ***The Cache Hit Ratio***
   ![cache_hit_ratio_diff_cache_size](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/cache_hit_ratio_diff_cache_size.png) 
   ![cache_hit_ratio_diff_node](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/cache_hit_ratio_diff_node.png) 
   
   
-* **The Query Delay**
+ #### ***The Query Delay***
+ ![query_delay_query_generate_time](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/query_delay_query_generate_time.png) 
   ![query_delay_update](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/query_delay_update.png)
-  ![query_delay_query_generate_time](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/query_delay_query_generate_time.png) 
+  
 
  
-* **The Number of Queries Served Per IR Interval**
+ #### ***The Number of Queries Served Per IR Interval***
  ![queies_served_per_IR_interval](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/queies_served_per_IR_interval.png) 
   
 
