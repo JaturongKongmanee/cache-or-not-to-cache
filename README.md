@@ -38,26 +38,37 @@ Mobile Environments](http://www.cs.columbia.edu/~danr/courses/6762/Summer03/week
 |        |  | int is_cache_full() |
 |        |  | int get_oldest_invalid() |
 
- ### Compilation & Run
+ ### Compilation 
  ```
  csim64.gcc project.c -o project
  ./project
  ```
- * Specify a loss probability of packet.
- ```
- Enter a loss probability value:
- ```
+ To show the simulation is running correctly in the below section, I simplify the parameters according to:
+ * Number of clients is **3** 
+ * Mean update arrival time (T_update) is **20s**
+ * Mean query generate time (T_query) is **100s**
+ * Simulation time is **50000**
+ * Cache size is **100** items
+ 
+  ### Run Simulation
+  
+* Specify T_update and T_query.
+```
+Enter Mean update arrival time (T_update) in seconds:
+20
+You've entered T_update: 20
+Enter Mean query generate time (T_query) in seconds:
+100
+You've entered T_query: 100
+```
  * Example of statistical results.
  ```
- Statistics of loss probability: 0.300000
- Average number of successful transmissions 0.59
- Average number of failed transmissions 0.41
- Average roundtrip time 0.50
- Node 0 generates 108 packets
- Node 1 generates 120 packets
- Node 2 generates 90 packets
- Node 3 generates 110 packets
- Node 4 generates 116 packets
+Enter Mean query generate time (T_update) in seconds: 20
+Enter Mean query generate time (T_query) in seconds: 100
+#Cache hit: 831 ------ #Cache miss: 1179
+#Cache hit ratio 0.41
+Query delay (seconds):        5.353
+#Queries served per interval: raw 431, avg: 0.17240
 ```
 
 
@@ -84,7 +95,7 @@ Mobile Environments](http://www.cs.columbia.edu/~danr/courses/6762/Summer03/week
   
  ## Acknowledgments
   * **Assistant Professor [Sunho Lim](http://www.myweb.ttu.edu/slim/), Ph.D.**
-  * Valuable suggestion and discussion with **[Chetan Karahalli Srinivasa](https://github.com/kschetan25)**
+  * Discussion with **[Chetan Karahalli Srinivasa](https://github.com/kschetan25)**
 
 
 ## References
@@ -96,3 +107,4 @@ Mobile Environments](http://www.cs.columbia.edu/~danr/courses/6762/Summer03/week
 - [VIM Tutorial](http://www.cse.msu.edu/~cse420/Tutorials/VIM/vim.tutorial)
 - [Computer Architecture](https://www.cse.msu.edu/~cse420/)
 - [Arrays in C](https://www.cs.swarthmore.edu/~newhall/unixhelp/C_arrays.html)
+- [Organizing information in README.md with tables](https://help.github.com/en/articles/organizing-information-with-tables)
