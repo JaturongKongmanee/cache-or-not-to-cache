@@ -2,18 +2,9 @@
 #include <csim.h>
 #include <stdio.h>
 
-/*
-TO-DO list
-1.) query delay
-2.) number query served per IR
-3.) send data items in the IR list one by one
-*/
-
-
-
 /* #define is used to define CONSTANT */
 #define SIM_TIME 50000.0
-#define NUM_CLIENTS 20l
+#define NUM_CLIENTS 3l
 #define NUM_SERVER 1l
 
 #define DB_SIZE 1000
@@ -88,7 +79,6 @@ long bcast_list_size;
 void client();
 void generate_query();
 void receive_ir();
-void receive_data_item();
 
 /* utility function */
 int is_cached();
@@ -106,6 +96,8 @@ long T_update;
 long T_query;
 long query_count;
 long num_query_per_interval;
+TIME q_gen;
+TIME q_delay;
 
 void sim() {
 
@@ -113,7 +105,7 @@ void sim() {
     scanf("%ld", &T_update);
     printf("You've entered T_update: %ld\n", T_update);
 
-    printf("Enter Mean query generate time (T_update) in seconds:\n");
+    printf("Enter Mean query generate time (T_query) in seconds:\n");
     scanf("%ld", &T_query);
     printf("You've entered T_query: %ld\n", T_query);
 
@@ -121,9 +113,12 @@ void sim() {
     init();
     hold(SIM_TIME);
 
-    printf("#Cache hit: %ld #Cache miss: %ld\n", cache_hit, cache_miss);
+    printf("Enter Mean update arrival time (T_update) in seconds: %ld\n", T_update);
+    printf("Enter Mean query generate time (T_query) in seconds: %ld\n", T_query);
+    printf("#Cache hit: %ld ------ #Cache miss: %ld\n", cache_hit, cache_miss);
     printf("#Cache hit ratio %.2f\n", cache_hit/(float)(cache_hit + cache_miss));
-    printf("#Queries served per interval: raw %ld, avg: %.5f\n", num_query_per_interval, num_query_per_interval/((SIM_TIME)/BROADCAST_INTERVAL));
+    printf("Query delay (seconds): %12.3f\n", (q_delay/(float)NUM_CLIENTS)/(SIM_TIME/BROADCAST_INTERVAL));
+    printf("#Queries served per interval: raw %ld, avg: %3.5f\n", num_query_per_interval, num_query_per_interval/((SIM_TIME)/BROADCAST_INTERVAL));
 
 }
 
@@ -381,6 +376,7 @@ void generate_query(long n) {
                 q->item_id = rand_access_hot_item_id;
                 send(node[0].mbox, (long)q);
                 printf("Client %ld is GENERATING QUERY request at HOT data... with id %ld at %6.3f\n", n, rand_access_hot_item_id, clock);
+                q_gen = clock;
             }
         } else {
             long rand_access_cold_item_id = random(COLD_DATA_ITEM_START, DB_SIZE);
@@ -388,6 +384,7 @@ void generate_query(long n) {
                 q->item_id = rand_access_cold_item_id;
                 send(node[0].mbox, (long)q);
                 printf("Client %ld is GENERATING QUERY request at COLD data... with id %ld at %6.3f\n", n, rand_access_cold_item_id, clock);
+                q_gen = clock;
             }
         }
     }  
@@ -463,6 +460,7 @@ void receive_ir(long n) {
                             cache_size[n][j].last_updated_time = ir[i].last_updated_time;
                             printf("CACHED DATA ITEM is updated: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);   
                             updated = 1;
+                            q_delay += clock - q_gen;
                             break;
                         }
                     }
@@ -476,6 +474,7 @@ void receive_ir(long n) {
                             cache_size[n][inv_idx].last_updated_time = ir[i].last_updated_time;
                             cache_size[n][inv_idx].last_accessed_time = 0;
                             printf("is replaced by new data item %ld\n", cache_size[n][inv_idx].id);
+                            q_delay += clock - q_gen;
                         } 
                         else if (val_idx != 0) {
                             printf("OLDEST VVVVALID data item id %ld idx %ld --- ", cache_size[n][val_idx].id, val_idx);
@@ -484,6 +483,7 @@ void receive_ir(long n) {
                             cache_size[n][val_idx].last_updated_time = ir[i].last_updated_time;
                             cache_size[n][val_idx].last_accessed_time = 0;
                             printf("is replaced by new data item %ld\n", cache_size[n][val_idx].id);
+                            q_delay += clock - q_gen;
                         } 
                     }
                 }
