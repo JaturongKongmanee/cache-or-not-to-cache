@@ -63,7 +63,7 @@ You've entered T_query: 100
 ```
  * Example of statistical results.
  ```
-Enter Mean query generate time (T_update) in seconds: 20
+Enter Mean update arrival time (T_update) in seconds: 20
 Enter Mean query generate time (T_query) in seconds: 100
 #Cache hit: 831 ------ #Cache miss: 1179
 #Cache hit ratio 0.41
@@ -80,7 +80,8 @@ Query delay (seconds):        5.353
   
   
   * **The Query Delay**
-  ![query_delay](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/queies_served_per_IR_interval.png) 
+  ![query_delay_query_generate_time](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/query_delay_query_generate_time.png) 
+  ![query_delay_update](https://github.com/JaturongKongmanee/cache-or-not-to-cache/blob/master/images/query_delay_update.png)
   <br/><br/>
  
  
