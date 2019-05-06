@@ -12,11 +12,11 @@ TO-DO list
 
 
 /* #define is used to define CONSTANT */
-#define SIM_TIME 500000.0
-#define NUM_CLIENTS 3l
+#define SIM_TIME 50000.0
+#define NUM_CLIENTS 20l
 #define NUM_SERVER 1l
 
-#define DB_SIZE 100
+#define DB_SIZE 1000
 #define HOT_DATA_ITEM_LIMIT 49
 #define COLD_DATA_ITEM_START 50
 
@@ -428,8 +428,7 @@ void receive_ir(long n) {
         } else {
             printf("Node %ld address %ld, receives DATA ITEM size %ld\n", n, &cache_size[n], ir[0].ir_size);
         }
-        long lru_temp[100] = {0};
-        int lru_counter = 0;
+
         if (ir[0].ir_status == 1) {
             int i, j;
             for (i = 0; i < ir[0].ir_size; i++) {
@@ -445,72 +444,51 @@ void receive_ir(long n) {
             int i, j;
             for (i = 0; i < ir[0].ir_size; i++) {
                 printf("DATA ITEM id %ld\n", ir[i].id);
-                for (j = 0; j < CACHE_SIZE; j++) {
-                    if (cache_size[n][j].id != -1) {
+                if (!is_cache_full(n)) {
+                    for (j = 0; j < CACHE_SIZE; j++) {
+                        if (cache_size[n][j].id == -1) { 
+                            cache_size[n][j].id = ir[i].id;
+                            cache_size[n][j].valid = 1;
+                            cache_size[n][j].last_updated_time = ir[i].last_updated_time;
+                            cache_size[n][j].last_accessed_time = 0;
+                            printf("NEW DATA ITEM is cached: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);
+                            break;
+                        }
+                    }
+                } else {
+                    int updated = 0;
+                    for (j = 0; j < CACHE_SIZE; j++) {
                         if (ir[i].id == cache_size[n][j].id && cache_size[n][j].valid == 0) {
                             cache_size[n][j].valid = 1;
                             cache_size[n][j].last_updated_time = ir[i].last_updated_time;
                             printf("CACHED DATA ITEM is updated: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);   
-                            
-                        } else {
-                            lru_temp[lru_counter] = i;
-                            lru_counter++;
-                            printf("+++++++++++++++++  %ld\n", ir[i].id);
+                            updated = 1;
+                            break;
                         }
-                    } else {
-                        cache_size[n][j].id = ir[i].id;
-                        cache_size[n][j].valid = 1;
-                        cache_size[n][j].last_updated_time = ir[i].last_updated_time;
-                        cache_size[n][j].last_accessed_time = 0;
-                        printf("NEW DATA ITEM is cached: id %ld, valid %ld, last updated time %6.3f, last accessed time %6.3f\n", cache_size[n][j].id, cache_size[n][j].valid, cache_size[n][j].last_updated_time, cache_size[n][j].last_accessed_time);
-                        break;
-                    }             
+                    }
+                    if (!updated) {
+                        int inv_idx = get_oldest_invalid(n);
+                        int val_idx = get_oldest_valid(n);
+                        if (inv_idx != 0) {
+                            printf("OLDEST INVALID data item id %ld idx %ld --- ", cache_size[n][inv_idx].id, inv_idx);
+                            cache_size[n][inv_idx].id = ir[i].id;
+                            cache_size[n][inv_idx].valid = 1;
+                            cache_size[n][inv_idx].last_updated_time = ir[i].last_updated_time;
+                            cache_size[n][inv_idx].last_accessed_time = 0;
+                            printf("is replaced by new data item %ld\n", cache_size[n][inv_idx].id);
+                        } 
+                        else if (val_idx != 0) {
+                            printf("OLDEST VVVVALID data item id %ld idx %ld --- ", cache_size[n][val_idx].id, val_idx);
+                            cache_size[n][val_idx].id = ir[i].id;
+                            cache_size[n][val_idx].valid = 1;
+                            cache_size[n][val_idx].last_updated_time = ir[i].last_updated_time;
+                            cache_size[n][val_idx].last_accessed_time = 0;
+                            printf("is replaced by new data item %ld\n", cache_size[n][val_idx].id);
+                        } 
+                    }
                 }
             }
         }
-
-        int q;
-        int lru_size = 0;       
-        for (q = 0; q < 100; q++) {
-            if (lru_temp[q] != 0) {
-                lru_size++;
-            }
-        }
-        
-        if (lru_size > 0) {
-            printf("LRU size %ld\n", lru_size);
-            printf("-------------------------LRU performing at node %ld-------------------------\n", n);
-            int k;
-            for (k = 0; k <= lru_size; k++) {
-                printf("lru data item id %ld\n", ir[lru_temp[k]].id);
-                int inv_idx = get_oldest_invalid(n);
-                int val_idx = get_oldest_valid(n);
-                if (inv_idx != 0) {
-                    printf("OLDEST INVALID data item id %ld idx %ld --- ", cache_size[n][inv_idx].id, inv_idx);
-                    cache_size[n][inv_idx].id = ir[lru_temp[k]].id;
-                    cache_size[n][inv_idx].valid = 1;
-                    cache_size[n][inv_idx].last_updated_time = ir[lru_temp[k]].last_updated_time;
-                    cache_size[n][inv_idx].last_accessed_time = 0;
-                    printf("is replaced by new data item %ld\n", cache_size[n][inv_idx].id);
-                } 
-                else if (val_idx != 0) {
-                    printf("OLDEST VVVVALID data item id %ld idx %ld --- ", cache_size[n][val_idx].id, val_idx);
-                    cache_size[n][val_idx].id = ir[lru_temp[k]].id;
-                    cache_size[n][val_idx].valid = 1;
-                    cache_size[n][val_idx].last_updated_time = ir[lru_temp[k]].last_updated_time;
-                    cache_size[n][val_idx].last_accessed_time = 0;
-                    printf("is replaced by new data item %ld\n", cache_size[n][val_idx].id);
-                } 
-            }
-        }
-
-        /* clear lru temp */
-        int v; 
-        for (v = 0; v < 100; v++) {
-            lru_temp[v] = 0;
-        }
-        lru_counter = 0;
-        /*printf("------------ clear LRU temp ------------\n");*/
     }
 }
 
