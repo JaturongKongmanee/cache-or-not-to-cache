@@ -288,7 +288,7 @@ node 1 CACHE HIT id 44 ---- generated query id 44
 
 
  ## Author
-  * **Jaturong Kongmanee** - [jaturong.me](http://jaturong.me/)
+  * **Jaturong Kongmanee** - [jaturongkongmanee.github.io/jk/](https://jaturongkongmanee.github.io/jk/)
   
  ## Acknowledgments
   * **Assistant Professor [Sunho Lim](http://www.myweb.ttu.edu/slim/), Ph.D.**
